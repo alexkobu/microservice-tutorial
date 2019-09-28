@@ -5,6 +5,8 @@ from flask import Blueprint, jsonify, request
 from project.api.models import User
 from project import db
 
+from sqlalchemy import exc
+
 users_blueprint = Blueprint('users', __name__)
 
 @users_blueprint.route('/users/ping', methods=['GET'])
@@ -26,3 +28,30 @@ def add_user():
         'message': f'{email} was added!'
     }
     return jsonify(response_objekt), 201
+
+@users_blueprint.route('/users', methods=['POST'])
+def add_user():
+    post_data = request.get_json()
+    response_objekt = {
+        'status': 'fail',
+        'message': 'Invalid payload.'
+    }
+    if not post_data:
+        return jsonify(response_objekt), 400
+
+    username = post_data.get('username')
+    email = post_data.get('email')
+    try:
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            db.session.add(User(username=username, email=email))
+            db.session.commit()
+            response_objekt['status'] = 'success'
+            response_objekt['message'] = f'{email} was added!'
+            return jsonify(response_objekt), 201
+        else:
+            response_objekt['message'] = 'Sorry, the email already exists'
+            return jsonify(response_objekt), 400
+    except exc.IntegrityError as e:
+        db.session.rollback()
+        return jsonify(response_objekt), 400
