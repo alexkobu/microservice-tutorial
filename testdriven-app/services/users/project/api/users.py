@@ -16,28 +16,17 @@ def ping_pong():
         'message': 'pong!'
     })
 
-@users_blueprint.route('/users', methods=['POST'])
-def add_user():
-    post_data = request.get_json()
-    username = post_data.get('username')
-    email = post_data.get('email')
-    db.session.add(User(username=username, email=email))
-    db.session.commit()
-    response_objekt = {
-        'status': 'success',
-        'message': f'{email} was added!'
-    }
-    return jsonify(response_objekt), 201
+
 
 @users_blueprint.route('/users', methods=['POST'])
 def add_user():
     post_data = request.get_json()
-    response_objekt = {
+    response_object = {
         'status': 'fail',
         'message': 'Invalid payload.'
     }
     if not post_data:
-        return jsonify(response_objekt), 400
+        return jsonify(response_object), 400
 
     username = post_data.get('username')
     email = post_data.get('email')
@@ -46,12 +35,38 @@ def add_user():
         if not user:
             db.session.add(User(username=username, email=email))
             db.session.commit()
-            response_objekt['status'] = 'success'
-            response_objekt['message'] = f'{email} was added!'
-            return jsonify(response_objekt), 201
+            response_object['status'] = 'success'
+            response_object['message'] = f'{email} was added!'
+            return jsonify(response_object), 201
         else:
-            response_objekt['message'] = 'Sorry, the email already exists'
-            return jsonify(response_objekt), 400
+            response_object['message'] = 'Sorry. That email already exists.'
+            return jsonify(response_object), 400
     except exc.IntegrityError as e:
         db.session.rollback()
-        return jsonify(response_objekt), 400
+        return jsonify(response_object), 400
+
+@users_blueprint.route('/users/<user_id>', methods=['GET'])
+def get_single_user(user_id):
+    """Get single user detail"""
+    response_object = {
+        'status': 'fail',
+        'message': 'User does not exist'
+    }
+
+    try:
+        user = User.query.filter_by(id=int(user_id)).first()
+        if not user:
+            return jsonify(response_object), 404
+        else:
+            response_object ={
+                'status': 'success',
+                'data': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'active': user.active
+                }
+            }
+            return jsonify(response_object), 200
+    except ValueError:
+        return jsonify(response_object), 404
